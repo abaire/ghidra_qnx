@@ -62,7 +62,9 @@ public class QnxLoader extends AbstractProgramWrapperLoader {
 
 				// QNX programs are either 32 or 16-bit x86 little-endian
 				loadSpecs.add(
-						new LoadSpec(this, imageBase, new LanguageCompilerSpecPair("x86:LE:32:default", "gcc"), true));
+						new LoadSpec(this, imageBase, new LanguageCompilerSpecPair("x86:LE:32:openwatcom", "openwatcomcpp"), true));
+				loadSpecs.add(
+						new LoadSpec(this, imageBase, new LanguageCompilerSpecPair("x86:LE:32:default", "gcc"), false));
 				loadSpecs.add(new LoadSpec(this, imageBase,
 						new LanguageCompilerSpecPair("x86:LE:16:Protected Mode", "default"), true));
 			}
