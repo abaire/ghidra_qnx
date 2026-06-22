@@ -67,10 +67,11 @@ jobs:
       - uses: er28-0652/setup-ghidra@master
         with:
           version: ${{ matrix.ghidra }}
-      - uses: eskatos/gradle-command-action@v3
+      - uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: ${{ matrix.gradle }}
-          arguments: buildExtension -PGHIDRA_INSTALL_DIR=${{ env.GHIDRA_INSTALL_DIR }}
+      - name: Build Extension
+        run: gradle buildExtension -PGHIDRA_INSTALL_DIR=${{ env.GHIDRA_INSTALL_DIR }}
       - name: Upload Release Asset
         if: needs.prepare.outputs.should_release == 'true'
         run: gh release upload "${{ needs.prepare.outputs.tag }}" dist/*ghidra_qnx.zip --clobber
