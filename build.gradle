@@ -43,3 +43,29 @@ dependencies {
 	// Any external dependencies added here will automatically be copied to the lib/ directory when
 	// this extension is built.	
 }
+
+def getGhidraVersion(ghidraDir) {
+	def properties = new Properties()
+	def file = new File(ghidraDir, "Ghidra/application.properties")
+	if (file.exists()) {
+		file.withInputStream { properties.load(it) }
+		return properties.getProperty("application.version")
+	}
+	return null
+}
+
+def ghidraVersion = getGhidraVersion(ghidraInstallDir)
+logger.lifecycle("Building for Ghidra Version: ${ghidraVersion}")
+
+sourceSets {
+	main {
+		java {
+			if (ghidraVersion && (ghidraVersion.startsWith("12.") || ghidraVersion.startsWith("13."))) {
+				srcDirs = ['src/main/java', 'src/main/java12']
+			} else {
+				srcDirs = ['src/main/java', 'src/main/java11']
+			}
+		}
+	}
+}
+
