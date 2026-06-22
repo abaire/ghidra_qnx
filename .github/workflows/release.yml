@@ -60,7 +60,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: 'zulu'
           java-version: ${{ matrix.java }}
           java-package: jdk
           architecture: x64
@@ -72,6 +72,17 @@ jobs:
           gradle-version: ${{ matrix.gradle }}
       - name: Build Extension
         run: gradle buildExtension -PGHIDRA_INSTALL_DIR=${{ env.GHIDRA_INSTALL_DIR }}
+      - name: Prep Artifact for Upload
+        run: |
+          mkdir -p dist/artifact
+          cp dist/*ghidra_qnx.zip dist/artifact/
+          cp LICENSE dist/artifact/
+          echo "This is an automated PR build. Import the nested .zip file into Ghidra." > dist/artifact/PR_BUILD.md
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghidra-${{ matrix.ghidra }}-qnx
+          path: dist/artifact/
       - name: Upload Release Asset
         if: needs.prepare.outputs.should_release == 'true'
         run: gh release upload "${{ needs.prepare.outputs.tag }}" dist/*ghidra_qnx.zip --clobber
