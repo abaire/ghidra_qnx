@@ -2,11 +2,47 @@ name: Release
 
 on:
   push:
+    branches:
+      - master
     tags:
       - '*'
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.get_tag.outputs.tag }}
+      should_release: ${{ steps.get_tag.outputs.should_release }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: get_tag
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/heads/master && "${{ github.event_name }}" == "push" ]]; then
+            echo "tag=v$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "tag=snapshot" >> $GITHUB_OUTPUT
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Create GitHub Release
+        if: steps.get_tag.outputs.should_release == 'true'
+        run: gh release create "${{ steps.get_tag.outputs.tag }}" --target "${{ github.sha }}" --title "Release ${{ steps.get_tag.outputs.tag }}" --notes "Automated release for Ghidra QNX extension."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build_and_publish:
+    needs: prepare
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -18,23 +54,22 @@ jobs:
             java: "21"
             gradle: "8.5"
     steps:
-      - uses: actions/checkout@v1
-      - uses: actions/setup-java@v1
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
+          distribution: 'temurin'
           java-version: ${{ matrix.java }}
           java-package: jdk
           architecture: x64
       - uses: er28-0652/setup-ghidra@master
         with:
           version: ${{ matrix.ghidra }}
-      - uses: eskatos/gradle-command-action@v1
+      - uses: eskatos/gradle-command-action@v3
         with:
           gradle-version: ${{ matrix.gradle }}
           arguments: buildExtension -PGHIDRA_INSTALL_DIR=${{ env.GHIDRA_INSTALL_DIR }}
-      - uses: svenstaro/upload-release-action@v1-release
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: dist/*ghidra_qnx.zip
-          tag: ${{ github.ref }}
-          overwrite: true
-          file_glob: true
+      - name: Upload Release Asset
+        if: needs.prepare.outputs.should_release == 'true'
+        run: gh release upload "${{ needs.prepare.outputs.tag }}" dist/*ghidra_qnx.zip --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
